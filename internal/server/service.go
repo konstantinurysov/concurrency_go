@@ -61,7 +61,7 @@ func (s *Server) Execute() error {
 					fmt.Println("failed to set: not enough arguments")
 				} else {
 					s.engine.Delete(args[0])
-					fmt.Printf("%s removed", args[0])
+					fmt.Printf("%s removed\n", args[0])
 				}
 			case helpCommand:
 				fmt.Println(guide)
