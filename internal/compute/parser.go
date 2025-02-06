@@ -1,32 +1,37 @@
 package compute
 
 import (
-	"fmt"
+	"concurrency_hw1/internal/storage"
 	"strings"
 )
+
+type CommandHandler interface {
+	CanHandle(command string, args []string) bool
+	Execute(args []string, engine *storage.Engine) (string, error)
+}
 
 type Parser struct {
 }
 
+func NewParser() *Parser {
+	return &Parser{}
+}
+
 func (p *Parser) Parse(line string) (string, []string, error) {
-	if line == "\n" {
+	if !p.Validate(line) {
 		return "", nil, nil
 	}
 
-	if len(line) < 3 {
-		err := fmt.Errorf("failed to parse command: too short")
-		return "", nil, err
-	}
-
 	arr := strings.Fields(line)
-	if len(arr) < 2 && arr[0] != "help" {
-		err := fmt.Errorf("failed to parse command: not enough arguments")
-		return "", nil, err
+	if len(line) != 0 {
+		return arr[0], arr[1:], nil
 	}
 
-	return arr[0], arr[1:], nil
+	return "", nil, nil
 }
 
-func NewParser() *Parser {
-	return &Parser{}
+// this function is used to validate input string
+func (p *Parser) Validate(line string) bool {
+	arr := strings.Fields(line)
+	return len(arr) != 0
 }

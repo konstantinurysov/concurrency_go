@@ -13,7 +13,7 @@ import (
 )
 
 // Interface -.
-type Interface interface {
+type LoggerInterface interface {
 	Debug(message interface{}, args ...interface{})
 	Info(message string, args ...interface{})
 	Warn(message string, args ...interface{})
@@ -26,7 +26,7 @@ type Logger struct {
 	logger *zerolog.Logger
 }
 
-var _ Interface = (*Logger)(nil)
+var _ LoggerInterface = (*Logger)(nil)
 
 // New -.
 func New(level, serviceEnv string) *Logger {

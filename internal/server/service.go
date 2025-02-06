@@ -7,6 +7,7 @@ import (
 	"concurrency_hw1/pkg/logger"
 	"context"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -16,76 +17,63 @@ const (
 	delCommand  = "DEL"
 	helpCommand = "help"
 	exitCommand = "exit"
-	guide       = "query = set_command | get_command | del_command \n set_command = \"SET\" argument argument \n get_command = \"GET\" argument \n del_command = \"DEL\" argument \n argument    = punctuation | letter | digit { punctuation | letter | digit } \n punctuation = \"*\" | \"/\" | \"_\" | ... \n letter      = \"a\" | ... | \"z\" | \"A\" | ... | \"Z\" \n digit       = \"0\" | ... | \"9\" "
+	guide       = "query = set_command | get_command | del_command \n set_command = \"SET\" argument argument \n get_command = \"GET\" argument \n del_command = \"DEL\" argument \n argument    = punctuation | letter | digit { punctuation | letter | digit } \n punctuation = \"*\" | \"/\" | \"_\" | ... \n letter      = \"a\" | ... | \"z\" | \"A\" | ... | \"Z\" \n digit       = \"0\" | ... | \"9\" \n exit_command = \"exit\""
 )
 
+type commandFunc func(args []string) error
+
+type CommandDefinition struct {
+	minArgs int
+	handler commandFunc
+}
+
 type Server struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	logger *logger.Logger
-	reader *bufio.Reader
-	parser *compute.Parser
-	engine *storage.Engine
+	logger   *logger.Logger
+	reader   *bufio.Reader
+	parser   *compute.Parser
+	engine   *storage.Engine
+	commands map[string]CommandDefinition
 }
 
-func (s *Server) Execute() error {
-	fmt.Println("Welcome to SuperKV database ) Waiting for your commands")
-	for {
-		select {
-		case <-s.ctx.Done():
-			return nil
-		default:
-			line, err := s.reader.ReadString('\n')
-			if err != nil {
-				return err
-			}
-			command, args, err := s.parser.Parse(line)
-			if err != nil {
-				s.logger.Error(err)
-			}
-
-			switch command {
-			case setCommand:
-				if len(args) < 2 {
-					s.logger.Error("failed to set: not enough arguments")
-				} else {
-					s.engine.Set(args[0], args[1])
-				}
-			case getCommand:
-				if len(args) < 1 {
-					s.logger.Error("failed to set: not enough arguments")
-				} else {
-					fmt.Printf("%s\n", s.engine.Get(args[0]))
-				}
-			case delCommand:
-				if len(args) < 1 {
-					s.logger.Error("failed to delete: not enough arguments")
-				} else {
-					s.engine.Delete(args[0])
-					fmt.Printf("%s removed\n", args[0])
-				}
-			case helpCommand:
-				fmt.Println(guide)
-			case exitCommand:
-				return nil
-			default:
-				s.logger.Error("wrong command, please use help command")
-			}
-		}
-	}
-}
-
-func (s *Server) Interrupt(err error) {
-	s.cancel()
-}
-
-func NewServer(ctx context.Context, cancel context.CancelFunc, logger *logger.Logger, parser *compute.Parser, engine *storage.Engine) *Server {
-	return &Server{
-		ctx:    ctx,
-		cancel: cancel,
+func NewServer(logger *logger.Logger, parser *compute.Parser, engine *storage.Engine) *Server {
+	s := &Server{
 		logger: logger,
 		reader: bufio.NewReader(os.Stdin),
 		parser: parser,
 		engine: engine,
+	}
+	s.initCommands()
+
+	return s
+}
+
+func (s *Server) initCommands() {
+	s.commands = map[string]CommandDefinition{
+		setCommand:  {minArgs: 2, handler: s.handleSet},
+		getCommand:  {minArgs: 1, handler: s.handleGet},
+		delCommand:  {minArgs: 1, handler: s.handleDel},
+		helpCommand: {minArgs: 0, handler: s.handleHelp},
+	}
+}
+
+func (s *Server) Execute(ctx context.Context) error {
+	fmt.Println("Welcome to SuperKV database. Waiting for your commands")
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			command, args, err := s.readAndParseCommand()
+			if err != nil {
+				return err
+			}
+
+			if err := s.dispatchCommand(command, args); err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				s.logger.Error(err)
+			}
+		}
 	}
 }
