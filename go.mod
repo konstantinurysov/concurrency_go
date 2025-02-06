@@ -2,10 +2,7 @@ module concurrency_hw1
 
 go 1.22.1
 
-require (
-	github.com/oklog/run v1.1.0
-	github.com/rs/zerolog v1.33.0
-)
+require github.com/rs/zerolog v1.33.0
 
 require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
