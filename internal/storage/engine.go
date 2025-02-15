@@ -9,10 +9,11 @@ type Engine struct {
 	mu      sync.RWMutex
 }
 
-func (e *Engine) Get(key string) string {
+func (e *Engine) Get(key string) (string, bool) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.storage[key]
+	value, ok := e.storage[key]
+	return value, ok
 }
 
 func (e *Engine) Set(key, value string) {

@@ -20,7 +20,8 @@ func TestEngine(t *testing.T) {
 				e.Set("hello", "world")
 			},
 			action: func() string {
-				return e.Get("hello")
+				val, _ := e.Get("hello")
+				return val
 			},
 			want: "world",
 		},
@@ -30,9 +31,10 @@ func TestEngine(t *testing.T) {
 				// no setup => the map is empty for this test
 			},
 			action: func() string {
-				return e.Get("no_such_key")
+				val, _ := e.Get("no_such_key")
+				return val
 			},
-			want: "",
+			want: " ",
 		},
 		{
 			name: "Set a key then delete it, expect empty on get",
@@ -41,9 +43,10 @@ func TestEngine(t *testing.T) {
 				e.Delete("delete_me")
 			},
 			action: func() string {
-				return e.Get("delete_me")
+				val, _ := e.Get("delete_me")
+				return val
 			},
-			want: "",
+			want: " ",
 		},
 		{
 			name: "Overwrite existing key with new value",
@@ -52,7 +55,8 @@ func TestEngine(t *testing.T) {
 				e.Set("foo", "newval")
 			},
 			action: func() string {
-				return e.Get("foo")
+				val, _ := e.Get("foo")
+				return val
 			},
 			want: "newval",
 		},
