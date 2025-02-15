@@ -30,9 +30,20 @@ func main() {
 		ConfigFileName = "../../config.yml"
 	}
 
-	cfg, err := config.Load(ConfigFileName, *address, *idleTimeout, *maxConnections, *maxMessageSizeStr)
+	cfg, err := config.Load(logger, ConfigFileName)
 	if err != nil {
-		logger.Fatal(err)
+		if cfg.Network.Address == "" {
+			cfg.Network.Address = *address
+		}
+		if cfg.Network.MaxConnections == 0 {
+			cfg.Network.MaxConnections = *maxConnections
+		}
+		if cfg.Network.MaxMessageSize == "" {
+			cfg.Network.MaxMessageSize = *maxMessageSizeStr
+		}
+		if cfg.Network.IdleTimeout == 0 {
+			cfg.Network.IdleTimeout = *idleTimeout
+		}
 	}
 
 	parser := compute.NewParser()

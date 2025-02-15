@@ -8,6 +8,7 @@ import (
 	"concurrency_hw1/pkg/logger"
 	"flag"
 	"os"
+	"time"
 
 	"context"
 	"os/signal"
@@ -21,19 +22,34 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	address := flag.String("address", "localhost:3223", "Address of the server")
-	idleTimeout := flag.Duration("idle_timeout", 1, "Idle timeout for connection")
+	address := flag.String("address", "127.0.0.1:3223", "Address of the server")
+	idleTimeoutStr := flag.String("idle_timeout", "5m", "Idle timeout for connection")
+	idleTimeout, err := time.ParseDuration(*idleTimeoutStr)
+	if err != nil {
+		logger.Fatal("failed to parse idle timeout", err)
+	}
 	maxConnections := flag.Int("max_connections", 100, "Max connections for server")
 	maxMessageSizeStr := flag.String("max_message_size", "4KB", "Max message size for connection")
 	flag.Parse()
 
 	if ConfigFileName == "" {
-		ConfigFileName = "../../config.yml"
+		ConfigFileName = "config.yml"
 	}
 
-	cfg, err := config.Load(ConfigFileName, *address, *idleTimeout, *maxConnections, *maxMessageSizeStr)
+	cfg, err := config.Load(logger, ConfigFileName)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Info("failed to load config. working with default values")
+		cfg = &config.Config{Network: &config.NetworkConfig{}}
+		if address != nil {
+			cfg.Network.Address = *address
+		}
+		if maxConnections != nil {
+			cfg.Network.MaxConnections = *maxConnections
+		}
+		if maxMessageSizeStr != nil {
+			cfg.Network.MaxMessageSize = *maxMessageSizeStr
+		}
+		cfg.Network.IdleTimeout = idleTimeout
 	}
 
 	parser := compute.NewParser()

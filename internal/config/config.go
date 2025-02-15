@@ -2,10 +2,10 @@ package config
 
 import (
 	"bytes"
+	"concurrency_hw1/pkg/logger"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
 
@@ -23,13 +23,14 @@ type NetworkConfig struct {
 	IdleTimeout    time.Duration `yaml:"idle_timeout"`
 }
 
-func Load(configFileName string, address string, idleTimeout time.Duration, maxConnections int, MaxMessageSize string) (*Config, error) {
+func Load(log *logger.Logger, configFileName string) (*Config, error) {
 	if configFileName == "" {
 		return nil, errors.New("empty config file name")
 	}
 	dataCfg, err := os.ReadFile(configFileName)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return nil, errors.New("failed to read config file")
 	}
 
 	reader := bytes.NewReader(dataCfg)
@@ -46,19 +47,6 @@ func Load(configFileName string, address string, idleTimeout time.Duration, maxC
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	if config.Network.Address == "" {
-		config.Network.Address = address
-	}
-	if config.Network.MaxConnections == 0 {
-		config.Network.MaxConnections = maxConnections
-	}
-	if config.Network.MaxMessageSize == "" {
-		config.Network.MaxMessageSize = MaxMessageSize
-	}
-	if config.Network.IdleTimeout == 0 {
-		config.Network.IdleTimeout = idleTimeout
 	}
 
 	return &config, nil
