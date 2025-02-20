@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"concurrency_hw1/internal/server"
 	"concurrency_hw1/pkg/common"
+	"concurrency_hw1/pkg/network"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,12 +26,12 @@ func main() {
 		logger.Fatal("failed to parse max message size", zap.Error(err))
 	}
 
-	var options []server.TCPClientOption
-	options = append(options, server.WithClientIdleTimeout(*idleTimeout))
-	options = append(options, server.WithClientBufferSize(uint(maxMessageSize)))
+	var options []network.TCPClientOption
+	options = append(options, network.WithClientIdleTimeout(*idleTimeout))
+	options = append(options, network.WithClientBufferSize(uint(maxMessageSize)))
 
 	reader := bufio.NewReader(os.Stdin)
-	client, err := server.NewTCPClient(*address, options...)
+	client, err := network.NewTCPClient(*address, options...)
 	if err != nil {
 		logger.Fatal("failed to connect with server", zap.Error(err))
 	}

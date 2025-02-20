@@ -1,4 +1,4 @@
-package server
+package network
 
 import (
 	"concurrency_hw1/internal/config"
@@ -51,9 +51,6 @@ func NewTCPServer(cfg *config.Config, logger logger.LoggerInterface) (*TCPServer
 		option(server)
 	}
 
-	// if server.maxConnections != 0 {
-	// 	server.semaphore = concurrency.NewSemaphore(server.maxConnections)
-	// }
 	if server.bufferSize == 0 {
 		server.bufferSize = 4 << 10
 	}
