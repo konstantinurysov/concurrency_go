@@ -24,12 +24,11 @@ type TCPServer struct {
 
 func NewTCPServer(cfg *config.Config, logger logger.LoggerInterface) (*TCPServer, error) {
 	if cfg == nil {
-		logger.Fatal("empty config")
-		return nil, nil
+		return nil, errors.New("empty config")
 	}
 
 	if logger == nil {
-		logger.Fatal("empty logger")
+		return nil, errors.New("empty logger")
 	}
 
 	listener, err := net.Listen("tcp", cfg.Network.Address)
