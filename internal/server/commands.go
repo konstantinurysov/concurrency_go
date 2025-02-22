@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"io"
 )
 
 func (s *Server) readAndParseCommand() (string, []string, error) {
@@ -13,45 +12,35 @@ func (s *Server) readAndParseCommand() (string, []string, error) {
 	return s.parser.Parse(line)
 }
 
-func (s *Server) handleSet(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("failed to set: not enough arguments")
-	}
+func (s *Server) handleSet(args []string) string {
 	s.engine.Set(args[0], args[1])
-	return nil
+	return "ok"
 }
 
-func (s *Server) handleGet(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("failed to get: not enough arguments")
+func (s *Server) handleGet(args []string) string {
+	if val, ok := s.engine.Get(args[0]); ok {
+		return val
 	}
-	fmt.Println(s.engine.Get(args[0]))
-	return nil
+	return " "
 }
 
-func (s *Server) handleDel(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("failed to delete: not enough arguments")
-	}
+func (s *Server) handleDel(args []string) string {
 	s.engine.Delete(args[0])
 
-	return nil
+	return "ok"
 }
 
-func (s *Server) handleHelp(args []string) error {
-	fmt.Println(guide)
-	return nil
+func (s *Server) handleHelp(args []string) string {
+	return guide
 }
 
-func (s *Server) dispatchCommand(command string, args []string) error {
-	if command == exitCommand {
-		return io.EOF
-	}
+func (s *Server) dispatchCommand(command string, args []string) string {
 	if cmdDef, ok := s.commands[command]; ok {
+		s.logger.Info("command: %s, args: %v", command, args)
 		if len(args) < cmdDef.minArgs {
-			return fmt.Errorf("command %s requires at least %d argument(s), got %d", command, cmdDef.minArgs, len(args))
+			return fmt.Sprintf("command %s requires at least %d argument(s), got %d", command, cmdDef.minArgs, len(args))
 		}
 		return cmdDef.handler(args)
 	}
-	return fmt.Errorf("unknown command: %s", command)
+	return fmt.Sprintf("unknown command: %s", command)
 }

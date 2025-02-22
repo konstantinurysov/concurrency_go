@@ -3,11 +3,13 @@ package server
 import (
 	"bufio"
 	"concurrency_hw1/internal/compute"
+	"concurrency_hw1/internal/config"
 	"concurrency_hw1/internal/storage"
+	"concurrency_hw1/pkg/concurrency"
 	"concurrency_hw1/pkg/logger"
+	"concurrency_hw1/pkg/network"
+
 	"context"
-	"fmt"
-	"io"
 	"os"
 )
 
@@ -20,7 +22,7 @@ const (
 	guide       = "query = set_command | get_command | del_command \n set_command = \"SET\" argument argument \n get_command = \"GET\" argument \n del_command = \"DEL\" argument \n argument    = punctuation | letter | digit { punctuation | letter | digit } \n punctuation = \"*\" | \"/\" | \"_\" | ... \n letter      = \"a\" | ... | \"z\" | \"A\" | ... | \"Z\" \n digit       = \"0\" | ... | \"9\" \n exit_command = \"exit\""
 )
 
-type commandFunc func(args []string) error
+type commandFunc func(args []string) string
 
 type CommandDefinition struct {
 	minArgs int
@@ -28,19 +30,30 @@ type CommandDefinition struct {
 }
 
 type Server struct {
-	logger   *logger.Logger
-	reader   *bufio.Reader
-	parser   *compute.Parser
-	engine   *storage.Engine
-	commands map[string]CommandDefinition
+	config    *config.Config
+	logger    *logger.Logger
+	reader    *bufio.Reader
+	parser    *compute.Parser
+	engine    *storage.Engine
+	server    *network.Server
+	commands  map[string]CommandDefinition
+	semaphore *concurrency.Semaphore
 }
 
-func NewServer(logger *logger.Logger, parser *compute.Parser, engine *storage.Engine) *Server {
+func NewServer(logger *logger.Logger, parser *compute.Parser, engine *storage.Engine, config *config.Config) *Server {
+	server, err := network.NewServer(config, logger)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	s := &Server{
-		logger: logger,
-		reader: bufio.NewReader(os.Stdin),
-		parser: parser,
-		engine: engine,
+		config:    config,
+		logger:    logger,
+		reader:    bufio.NewReader(os.Stdin),
+		parser:    parser,
+		engine:    engine,
+		server:    server,
+		semaphore: concurrency.NewSemaphore(config.Network.MaxConnections),
 	}
 	s.initCommands()
 
@@ -57,23 +70,17 @@ func (s *Server) initCommands() {
 }
 
 func (s *Server) Execute(ctx context.Context) error {
-	fmt.Println("Welcome to SuperKV database. Waiting for your commands")
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			command, args, err := s.readAndParseCommand()
-			if err != nil {
-				return err
-			}
+	s.server.Execute(ctx, s.handleRequest)
+	return nil
+}
 
-			if err := s.dispatchCommand(command, args); err != nil {
-				if err == io.EOF {
-					return nil
-				}
-				s.logger.Error(err)
-			}
-		}
+func (s *Server) handleRequest(ctx context.Context, request []byte) []byte {
+	s.logger.Info("handleRequest request: %v", string(request))
+	command, args, err := s.parser.Parse(string(request))
+	if err != nil {
+		s.logger.Error(err)
+		return nil
 	}
+
+	return []byte(s.dispatchCommand(command, args))
 }

@@ -1,14 +1,8 @@
 package compute
 
 import (
-	"concurrency_hw1/internal/storage"
 	"strings"
 )
-
-type CommandHandler interface {
-	CanHandle(command string, args []string) bool
-	Execute(args []string, engine *storage.Engine) (string, error)
-}
 
 type Parser struct {
 }
