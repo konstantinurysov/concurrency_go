@@ -5,6 +5,8 @@ import (
 	"concurrency_hw1/internal/config"
 	"concurrency_hw1/internal/server"
 	"concurrency_hw1/internal/storage"
+	"concurrency_hw1/internal/wal"
+	"concurrency_hw1/pkg/disk"
 	"concurrency_hw1/pkg/logger"
 	"context"
 	"flag"
@@ -27,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	if ConfigFileName == "" {
-		ConfigFileName = "../../config.yml"
+		ConfigFileName = "./../../config.yml"
 	}
 
 	cfg, err := config.Load(logger, ConfigFileName)
@@ -46,10 +48,16 @@ func main() {
 		}
 	}
 
+	diskStorage, err := disk.NewDiskStorage(cfg.Storage.Path, cfg.Storage.MaxSegmentSize, logger)
+	if err != nil {
+		logger.Error("failed to create disk storage: %w", err)
+		return
+	}
+
 	parser := compute.NewParser()
 	engine := storage.NewEngine()
-
-	service := server.NewServer(logger, parser, engine, cfg)
+	wal := wal.NewWALService(diskStorage, cfg.Storage.FlushingBatchSize, cfg.Storage.FlushingBatchTimeout, logger)
+	service := server.NewServer(logger, parser, engine, wal.WALChannel, cfg)
 	service.Execute(ctx)
 
 	logger.Info("all services are stopped")

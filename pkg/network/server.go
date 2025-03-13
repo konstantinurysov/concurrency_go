@@ -14,12 +14,16 @@ import (
 
 type TCPHandler = func(context.Context, []byte) []byte
 
-type Server struct {
-	tcpServer *TCPServer
-	logger    *logger.Logger
+type ServerInterface interface {
+	Execute(ctx context.Context, handleRequest func(ctx context.Context, request []byte) []byte) error
 }
 
-func NewServer(cfg *config.Config, logger *logger.Logger) (*Server, error) {
+type Server struct {
+	tcpServer *TCPServer
+	logger    logger.LoggerInterface
+}
+
+func NewServer(cfg *config.Config, logger logger.LoggerInterface) (*Server, error) {
 	tcpServer, err := NewTCPServer(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TCP server: %w", err)

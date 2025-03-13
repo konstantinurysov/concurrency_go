@@ -4,6 +4,11 @@ import (
 	"strings"
 )
 
+type ParserInterface interface {
+	Parse(line string) (string, []string, error)
+	Validate(line string) bool
+}
+
 type Parser struct {
 }
 
