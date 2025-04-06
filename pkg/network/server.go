@@ -36,34 +36,38 @@ func NewServer(cfg *config.Config, logger logger.LoggerInterface) (*Server, erro
 
 func (s *Server) Execute(ctx context.Context, handleRequest func(ctx context.Context, request []byte) []byte) error {
 	wg := sync.WaitGroup{}
-	defer func() {
-		wg.Wait()
-		s.tcpServer.listener.Close()
-	}()
 
 	fmt.Println("Welcome to SuperKV database. Waiting for your commands")
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
 			c, err := s.tcpServer.listener.Accept()
 
 			if err != nil {
 				if errors.Is(err, net.ErrClosed) {
-					return nil
+					return
 				}
-
-				return fmt.Errorf("failed to accept connection: %w", err)
+				s.logger.Error("failed to accept connection: %v", err.Error())
+				return
 			}
 
-			wg.Add(1)
 			go func() {
-				defer wg.Done()
 				s.handleConnection(ctx, c, handleRequest)
 			}()
 		}
+	}()
+
+	<-ctx.Done()
+	s.logger.Info("stopping TCP server")
+	if err := s.tcpServer.listener.Close(); err != nil {
+		s.logger.Error("failed to close listener: %v", err.Error())
 	}
+
+	wg.Wait()
+
+	return nil
 }
 
 func (s *Server) handleConnection(ctx context.Context, connection net.Conn, handler TCPHandler) {

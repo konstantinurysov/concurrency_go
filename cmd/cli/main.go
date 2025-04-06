@@ -48,15 +48,21 @@ func main() {
 		}
 	}
 
+	parser := compute.NewParser()
+	engine := storage.NewEngine()
 	diskStorage, err := disk.NewDiskStorage(cfg.Storage.Path, cfg.Storage.MaxSegmentSize, logger)
 	if err != nil {
 		logger.Error("failed to create disk storage: %w", err)
 		return
 	}
+	storeChan, err := diskStorage.StartStorageRoutine(ctx)
+	if err != nil {
+		logger.Error("failed to start storage routine: %w", err)
+		return
+	}
 
-	parser := compute.NewParser()
-	engine := storage.NewEngine()
-	wal := wal.NewWALService(diskStorage, cfg.Storage.FlushingBatchSize, cfg.Storage.FlushingBatchTimeout, logger)
+	wal := wal.NewWALService(storeChan, cfg.Storage.FlushingBatchSize, cfg.Storage.FlushingBatchTimeout, logger)
+	wal.Start(ctx)
 	service := server.NewServer(logger, parser, engine, wal.WALChannel, cfg)
 	service.Execute(ctx)
 

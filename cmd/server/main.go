@@ -36,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	if ConfigFileName == "" {
-		ConfigFileName = "./../../config.yml"
+		ConfigFileName = "../../config.yml"
 	}
 
 	cfg, err := config.Load(logger, ConfigFileName)
@@ -66,7 +66,13 @@ func main() {
 		return
 	}
 
-	wal := wal.NewWALService(diskStorage, cfg.Storage.FlushingBatchSize, cfg.Storage.FlushingBatchTimeout, logger)
+	c, err := diskStorage.StartStorageRoutine(ctx)
+	if err != nil {
+		logger.Error("failed to start storage routine: %w", err)
+		return
+	}
+
+	wal := wal.NewWALService(c, cfg.Storage.FlushingBatchSize, cfg.Storage.FlushingBatchTimeout, logger)
 	wal.Start(ctx)
 	service := server.NewServer(logger, parser, engine, wal.WALChannel, cfg)
 	service.Execute(ctx)

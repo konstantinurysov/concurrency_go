@@ -42,7 +42,7 @@ func (s *Server) dispatchCommand(command string, args []string) string {
 			return fmt.Sprintf("command %s requires at least %d argument(s), got %d", command, cmdDef.minArgs, len(args))
 		}
 		if cmdDef.isWAL {
-			s.walCh <- []byte(fmt.Sprintf("%s %s", command, strings.Join(args, " ")))
+			s.walCh <- fmt.Appendf(nil, "%s %s", command, strings.Join(args, " "))
 		}
 
 		return cmdDef.handler(args)

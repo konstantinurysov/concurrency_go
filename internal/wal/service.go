@@ -7,7 +7,7 @@ import (
 )
 
 type WALService struct {
-	wal        WAL
+	storeChan  chan []byte
 	logger     *logger.Logger
 	size       int
 	timeout    time.Duration
@@ -15,9 +15,9 @@ type WALService struct {
 	batch      [][]byte
 }
 
-func NewWALService(wal WAL, size int, timeout time.Duration, logger *logger.Logger) *WALService {
+func NewWALService(storeChan chan []byte, size int, timeout time.Duration, logger *logger.Logger) *WALService {
 	return &WALService{
-		wal:        wal,
+		storeChan:  storeChan,
 		size:       size,
 		timeout:    timeout,
 		logger:     logger,
@@ -38,6 +38,12 @@ func (w *WALService) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		default:
+		}
+
+		select {
+		case <-ctx.Done():
+			return
 		case operation := <-w.WALChannel:
 			if len(w.batch) > w.size {
 				w.handleRecord(w.batch)
@@ -53,11 +59,8 @@ func (w *WALService) run(ctx context.Context) {
 	}
 }
 
-// handleRecord writes the operations to the WAL
 func (w *WALService) handleRecord(operations [][]byte) {
 	for _, o := range operations {
-		if err := w.wal.Append(o); err != nil {
-			w.logger.Error("failed to record to wal: %w", err)
-		}
+		w.storeChan <- o
 	}
 }
