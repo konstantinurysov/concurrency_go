@@ -14,6 +14,7 @@ import (
 
 type Config struct {
 	Network *NetworkConfig `yaml:"network"`
+	Storage *StorageConfig `yaml:"wal"`
 }
 
 type NetworkConfig struct {
@@ -21,6 +22,13 @@ type NetworkConfig struct {
 	MaxConnections int           `yaml:"max_connections"`
 	MaxMessageSize string        `yaml:"max_message_size"`
 	IdleTimeout    time.Duration `yaml:"idle_timeout"`
+}
+
+type StorageConfig struct {
+	FlushingBatchSize    int           `yaml:"flushing_batch_size"`
+	FlushingBatchTimeout time.Duration `yaml:"flushing_batch_timeout"`
+	MaxSegmentSize       string        `yaml:"max_segment_size"`
+	Path                 string        `yaml:"data_directory"`
 }
 
 func Load(log *logger.Logger, configFileName string) (*Config, error) {

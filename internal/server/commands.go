@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strings"
 )
 
 func (s *Server) readAndParseCommand() (string, []string, error) {
@@ -40,6 +41,10 @@ func (s *Server) dispatchCommand(command string, args []string) string {
 		if len(args) < cmdDef.minArgs {
 			return fmt.Sprintf("command %s requires at least %d argument(s), got %d", command, cmdDef.minArgs, len(args))
 		}
+		if cmdDef.isWAL {
+			s.walCh <- fmt.Appendf(nil, "%s %s", command, strings.Join(args, " "))
+		}
+
 		return cmdDef.handler(args)
 	}
 	return fmt.Sprintf("unknown command: %s", command)

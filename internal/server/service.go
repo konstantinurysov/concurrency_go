@@ -27,20 +27,22 @@ type commandFunc func(args []string) string
 type CommandDefinition struct {
 	minArgs int
 	handler commandFunc
+	isWAL   bool
 }
 
 type Server struct {
 	config    *config.Config
-	logger    *logger.Logger
+	logger    logger.LoggerInterface
 	reader    *bufio.Reader
-	parser    *compute.Parser
-	engine    *storage.Engine
-	server    *network.Server
+	parser    compute.ParserInterface
+	engine    storage.EngineInterface
+	walCh     chan ([]byte)
+	server    network.ServerInterface
 	commands  map[string]CommandDefinition
-	semaphore *concurrency.Semaphore
+	semaphore concurrency.Semaphore
 }
 
-func NewServer(logger *logger.Logger, parser *compute.Parser, engine *storage.Engine, config *config.Config) *Server {
+func NewServer(logger logger.LoggerInterface, parser compute.ParserInterface, engine storage.EngineInterface, walCh chan ([]byte), config *config.Config) *Server {
 	server, err := network.NewServer(config, logger)
 	if err != nil {
 		logger.Fatal(err)
@@ -52,6 +54,7 @@ func NewServer(logger *logger.Logger, parser *compute.Parser, engine *storage.En
 		reader:    bufio.NewReader(os.Stdin),
 		parser:    parser,
 		engine:    engine,
+		walCh:     walCh,
 		server:    server,
 		semaphore: concurrency.NewSemaphore(config.Network.MaxConnections),
 	}
@@ -62,10 +65,10 @@ func NewServer(logger *logger.Logger, parser *compute.Parser, engine *storage.En
 
 func (s *Server) initCommands() {
 	s.commands = map[string]CommandDefinition{
-		setCommand:  {minArgs: 2, handler: s.handleSet},
-		getCommand:  {minArgs: 1, handler: s.handleGet},
-		delCommand:  {minArgs: 1, handler: s.handleDel},
-		helpCommand: {minArgs: 0, handler: s.handleHelp},
+		setCommand:  {minArgs: 2, handler: s.handleSet, isWAL: true},
+		getCommand:  {minArgs: 1, handler: s.handleGet, isWAL: false},
+		delCommand:  {minArgs: 1, handler: s.handleDel, isWAL: true},
+		helpCommand: {minArgs: 0, handler: s.handleHelp, isWAL: false},
 	}
 }
 

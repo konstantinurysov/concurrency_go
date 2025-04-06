@@ -5,6 +5,8 @@ import (
 	"concurrency_hw1/internal/config"
 	"concurrency_hw1/internal/server"
 	"concurrency_hw1/internal/storage"
+	"concurrency_hw1/internal/wal"
+	"concurrency_hw1/pkg/disk"
 	"concurrency_hw1/pkg/logger"
 	"flag"
 	"os"
@@ -24,6 +26,7 @@ func main() {
 
 	address := flag.String("address", "127.0.0.1:3223", "Address of the server")
 	idleTimeoutStr := flag.String("idle_timeout", "5m", "Idle timeout for connection")
+	walPath := flag.String("wal_path", "./wal", "Path to write ahead log")
 	idleTimeout, err := time.ParseDuration(*idleTimeoutStr)
 	if err != nil {
 		logger.Fatal("failed to parse idle timeout", err)
@@ -33,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	if ConfigFileName == "" {
-		ConfigFileName = "config.yml"
+		ConfigFileName = "../../config.yml"
 	}
 
 	cfg, err := config.Load(logger, ConfigFileName)
@@ -50,12 +53,28 @@ func main() {
 			cfg.Network.MaxMessageSize = *maxMessageSizeStr
 		}
 		cfg.Network.IdleTimeout = idleTimeout
+		if walPath != nil {
+			cfg.Storage.Path = *walPath
+		}
 	}
 
 	parser := compute.NewParser()
 	engine := storage.NewEngine()
+	diskStorage, err := disk.NewDiskStorage(cfg.Storage.Path, cfg.Storage.MaxSegmentSize, logger)
+	if err != nil {
+		logger.Error("failed to create disk storage: %w", err)
+		return
+	}
 
-	service := server.NewServer(logger, parser, engine, cfg)
+	c, err := diskStorage.StartStorageRoutine(ctx)
+	if err != nil {
+		logger.Error("failed to start storage routine: %w", err)
+		return
+	}
+
+	wal := wal.NewWALService(c, cfg.Storage.FlushingBatchSize, cfg.Storage.FlushingBatchTimeout, logger)
+	wal.Start(ctx)
+	service := server.NewServer(logger, parser, engine, wal.WALChannel, cfg)
 	service.Execute(ctx)
 
 	logger.Info("all services are stopped")

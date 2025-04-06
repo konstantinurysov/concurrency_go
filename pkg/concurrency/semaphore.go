@@ -4,8 +4,8 @@ type Semaphore struct {
 	semaphore chan struct{}
 }
 
-func NewSemaphore(concurrency int) *Semaphore {
-	return &Semaphore{
+func NewSemaphore(concurrency int) Semaphore {
+	return Semaphore{
 		semaphore: make(chan struct{}, concurrency),
 	}
 }
